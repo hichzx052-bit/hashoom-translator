@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🪶 هشوم ترجمة — لوحة التحكم</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, sans-serif;
+            background: linear-gradient(135deg, #0A0A1A 0%, #1A1A2E 50%, #162447 100%);
+            color: #fff;
+            min-height: 100vh;
+        }
+        .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+        
+        /* Lock Screen */
+        .lock-screen {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            gap: 20px;
+        }
+        .lock-icon {
+            width: 80px; height: 80px;
+            background: rgba(108, 99, 255, 0.2);
+            border: 2px solid rgba(108, 99, 255, 0.5);
+            border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 36px;
+        }
+        .lock-screen h2 { font-size: 22px; color: #fff; }
+        .lock-screen p { color: #777; font-size: 14px; }
+        .code-input {
+            background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(108, 99, 255, 0.3);
+            border-radius: 12px;
+            padding: 14px 20px;
+            color: #fff;
+            font-size: 20px;
+            text-align: center;
+            letter-spacing: 5px;
+            width: 250px;
+            outline: none;
+            transition: border-color 0.3s;
+        }
+        .code-input:focus { border-color: #6C63FF; }
+        .code-input::placeholder { letter-spacing: 3px; font-size: 16px; }
+        
+        .btn {
+            background: linear-gradient(135deg, #6C63FF, #3F3D9E);
+            color: #fff;
+            border: none;
+            padding: 12px 32px;
+            border-radius: 12px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 20px rgba(108,99,255,0.4); }
+        
+        /* Dashboard */
+        .dashboard { display: none; }
+        .dashboard.active { display: block; }
+        
+        .header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 20px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+            margin-bottom: 24px;
+        }
+        .header h1 { font-size: 24px; }
+        .header .version {
+            background: rgba(0,217,255,0.15);
+            color: #00D9FF;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+        
+        .card {
+            background: rgba(26, 26, 46, 0.8);
+            border: 1px solid rgba(108, 99, 255, 0.15);
+            border-radius: 16px;
+            padding: 20px;
+            margin-bottom: 16px;
+            backdrop-filter: blur(10px);
+        }
+        .card h3 {
+            color: #6C63FF;
+            font-size: 16px;
+            margin-bottom: 16px;
+        }
+        
+        .feature-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .feature-row:last-child { border-bottom: none; }
+        .feature-name { color: #ccc; font-size: 14px; }
+        
+        /* Toggle Switch */
+        .toggle {
+            position: relative;
+            width: 48px; height: 26px;
+            background: #333;
+            border-radius: 13px;
+            cursor: pointer;
+            transition: background 0.3s;
+        }
+        .toggle.active { background: #6C63FF; }
+        .toggle::after {
+            content: '';
+            position: absolute;
+            top: 3px; left: 3px;
+            width: 20px; height: 20px;
+            background: #fff;
+            border-radius: 50%;
+            transition: transform 0.3s;
+        }
+        .toggle.active::after { transform: translateX(22px); }
+        
+        /* Code Input for features */
+        .code-area {
+            background: #0a0a1a;
+            border: 1px solid rgba(108,99,255,0.2);
+            border-radius: 10px;
+            padding: 12px;
+            color: #00D9FF;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            width: 100%;
+            min-height: 80px;
+            resize: vertical;
+            outline: none;
+        }
+        
+        .push-btn {
+            background: linear-gradient(135deg, #00D9FF, #0099CC);
+            color: #fff;
+            border: none;
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+        
+        .status-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+        }
+        .status-badge.online { background: rgba(0,200,83,0.2); color: #00C853; }
+        .status-badge.offline { background: rgba(255,0,0,0.2); color: #FF5252; }
+        
+        .api-key-display {
+            background: #0a0a1a;
+            border: 1px solid rgba(108,99,255,0.2);
+            border-radius: 8px;
+            padding: 10px;
+            font-family: monospace;
+            font-size: 12px;
+            color: #6C63FF;
+            word-break: break-all;
+            cursor: pointer;
+        }
+        
+        .log-entry {
+            padding: 6px 0;
+            font-size: 12px;
+            color: #888;
+            font-family: monospace;
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+    </style>
+</head>
+<body>
+    <!-- Lock Screen -->
+    <div class="lock-screen" id="lockScreen">
+        <div class="lock-icon">🔐</div>
+        <h2>لوحة تحكم المطور</h2>
+        <p>أدخل الكود السري للدخول</p>
+        <input type="password" class="code-input" id="codeInput" placeholder="• • • • •" maxlength="20">
+        <button class="btn" onclick="verifyCode()">دخول</button>
+        <p id="errorMsg" style="color: #FF5252; display: none;">❌ كود خاطئ!</p>
+    </div>
+
+    <!-- Dashboard -->
+    <div class="dashboard" id="dashboard">
+        <div class="container">
+            <div class="header">
+                <div>
+                    <h1>🪶 هشوم ترجمة</h1>
+                    <p style="color: #777; font-size: 13px; margin-top: 4px;">لوحة تحكم المطور</p>
+                </div>
+                <span class="version">v2.0.0</span>
+            </div>
+
+            <!-- API Key -->
+            <div class="card">
+                <h3>🔑 مفتاح API</h3>
+                <div class="api-key-display" id="apiKey" onclick="copyApiKey()">
+                    جاري التوليد...
+                </div>
+                <p style="color: #555; font-size: 12px; margin-top: 8px;">اضغط للنسخ — استخدمه في التطبيق للتحكم عن بعد</p>
+            </div>
+
+            <!-- Feature Toggles -->
+            <div class="card">
+                <h3>⚡ التحكم بالميزات</h3>
+                <div class="feature-row">
+                    <span class="feature-name">🎤 الترجمة الصوتية</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'voice_translation')"></div>
+                </div>
+                <div class="feature-row">
+                    <span class="feature-name">🫧 النافذة العائمة (Overlay)</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'overlay')"></div>
+                </div>
+                <div class="feature-row">
+                    <span class="feature-name">🔄 الوضع الثنائي</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'bidirectional')"></div>
+                </div>
+                <div class="feature-row">
+                    <span class="feature-name">🎬 ترجمة الفيديو</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'video_translation')"></div>
+                </div>
+                <div class="feature-row">
+                    <span class="feature-name">🔊 اختيار الأصوات</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'voice_selection')"></div>
+                </div>
+                <div class="feature-row">
+                    <span class="feature-name">📱 التشغيل في الخلفية</span>
+                    <div class="toggle active" onclick="toggleFeature(this, 'background_mode')"></div>
+                </div>
+            </div>
+
+            <!-- Push Code Update -->
+            <div class="card">
+                <h3>🚀 دفع تحديث برمجي</h3>
+                <p style="color: #777; font-size: 13px; margin-bottom: 12px;">
+                    أدخل كود Dart لميزة جديدة — يتم دفعه للتطبيق عند التحديث القادم
+                </p>
+                <textarea class="code-area" id="codeArea" placeholder="// أدخل كود الميزة هنا...&#10;// مثال: إضافة لغة جديدة"></textarea>
+                <div style="display: flex; gap: 10px; align-items: center; margin-top: 10px;">
+                    <input type="text" placeholder="رقم الإصدار (مثلاً 2.1.0)" 
+                           style="flex:1; background: #0a0a1a; border: 1px solid rgba(108,99,255,0.2); border-radius: 8px; padding: 10px; color: #fff; outline: none;"
+                           id="versionInput">
+                    <button class="push-btn" onclick="pushUpdate()">🚀 دفع التحديث</button>
+                </div>
+            </div>
+
+            <!-- Update History -->
+            <div class="card">
+                <h3>📋 سجل التحديثات</h3>
+                <div id="updateLog">
+                    <div class="log-entry">v2.0.0 — الإصدار الأول الاحترافي — 24/03/2026</div>
+                    <div class="log-entry">v1.0.0 — النسخة الأولى — 24/03/2026</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SECRET_CODE = 'Hichamdzz';
+        let attempts = 0;
+
+        function verifyCode() {
+            const input = document.getElementById('codeInput').value;
+            if (input === SECRET_CODE) {
+                document.getElementById('lockScreen').style.display = 'none';
+                document.getElementById('dashboard').classList.add('active');
+                generateApiKey();
+            } else {
+                attempts++;
+                document.getElementById('errorMsg').style.display = 'block';
+                document.getElementById('codeInput').value = '';
+                if (attempts >= 3) {
+                    document.getElementById('errorMsg').textContent = '🔒 تم القفل — حاول لاحقاً';
+                }
+            }
+        }
+
+        // Enter key support
+        document.getElementById('codeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') verifyCode();
+        });
+
+        function generateApiKey() {
+            // Generate a unique API key
+            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+            let key = 'hshm_';
+            for (let i = 0; i < 32; i++) {
+                key += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            // Save to localStorage
+            let savedKey = localStorage.getItem('hashoom_api_key');
+            if (!savedKey) {
+                localStorage.setItem('hashoom_api_key', key);
+                savedKey = key;
+            }
+            document.getElementById('apiKey').textContent = savedKey;
+        }
+
+        function copyApiKey() {
+            const key = document.getElementById('apiKey').textContent;
+            navigator.clipboard.writeText(key).then(() => {
+                const el = document.getElementById('apiKey');
+                const original = el.textContent;
+                el.textContent = '✅ تم النسخ!';
+                setTimeout(() => el.textContent = original, 1500);
+            });
+        }
+
+        function toggleFeature(el, feature) {
+            el.classList.toggle('active');
+            const enabled = el.classList.contains('active');
+            // Save feature state
+            let features = JSON.parse(localStorage.getItem('hashoom_features') || '{}');
+            features[feature] = enabled;
+            localStorage.setItem('hashoom_features', JSON.stringify(features));
+            console.log(`Feature ${feature}: ${enabled}`);
+        }
+
+        function pushUpdate() {
+            const code = document.getElementById('codeArea').value;
+            const version = document.getElementById('versionInput').value;
+            if (!code || !version) {
+                alert('أدخل الكود ورقم الإصدار');
+                return;
+            }
+            
+            // Save update
+            let updates = JSON.parse(localStorage.getItem('hashoom_updates') || '[]');
+            updates.unshift({
+                version: version,
+                code: code,
+                date: new Date().toLocaleDateString('ar'),
+                timestamp: Date.now()
+            });
+            localStorage.setItem('hashoom_updates', JSON.stringify(updates));
+            
+            // Add to log
+            const log = document.getElementById('updateLog');
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.textContent = `v${version} — تحديث جديد — ${new Date().toLocaleDateString('ar')}`;
+            log.insertBefore(entry, log.firstChild);
+            
+            // Clear inputs
+            document.getElementById('codeArea').value = '';
+            document.getElementById('versionInput').value = '';
+            
+            alert('✅ تم دفع التحديث — سيصل للتطبيق عند التحديث القادم');
+        }
+    </script>
+</body>
+</html>
