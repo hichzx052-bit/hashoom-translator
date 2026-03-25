@@ -362,7 +362,7 @@ class _HomeScreenState extends State<HomeScreen> with TickerProviderStateMixin {
       onTap: _isListening ? _stopListening : _startListening,
       child: AnimatedBuilder(
         animation: _pulseController,
-        builder: (context, child) {
+        builder: (context, _) {
           final scale = _isListening ? 1.0 + (_pulseController.value * 0.15) : 1.0;
           return Transform.scale(
             scale: scale,
