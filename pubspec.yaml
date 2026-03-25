@@ -1,39 +1,38 @@
 name: hashoom_translator
-description: هشوم ترجمة - تطبيق ترجمة صوتية ونصية فورية احترافي
+description: "هشوم ترجمة — مترجم صوتي ذكي يشتغل في الخلفية"
 publish_to: 'none'
 version: 2.0.0+2
 
 environment:
-  sdk: '>=3.0.0 <4.0.0'
-  flutter: '>=3.10.0'
+  sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
   flutter:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
-  # Speech & TTS
+  cupertino_icons: ^1.0.6
   speech_to_text: ^6.6.0
-  flutter_tts: ^3.8.5
-  # Overlay & Background
+  flutter_tts: ^4.0.2
+  translator: ^1.0.0
   flutter_overlay_window: ^0.4.3
-  # Permissions
+  flutter_background_service: ^5.0.5
+  flutter_background_service_android: ^6.2.2
   permission_handler: ^11.1.0
-  # Storage
   shared_preferences: ^2.2.2
-  # Network
-  http: ^1.1.0
-  # UI
+  provider: ^6.1.1
   google_fonts: ^6.1.0
-  flutter_animate: ^4.3.0
-  lottie: ^2.7.0
-  # Audio
-  audio_session: ^0.1.18
-  # Utils
-  uuid: ^4.2.1
-  intl: ^0.19.0
+  animate_do: ^3.1.2
+  lottie: ^3.0.0
   url_launcher: ^6.2.2
+  path_provider: ^2.1.1
+  http: ^1.1.2
   package_info_plus: ^5.0.1
+  audio_session: ^0.1.18
+  langdetect: ^0.0.2
+  uuid: ^4.2.1
+  flutter_local_notifications: ^17.0.0
+  crypto: ^3.0.3
 
 dev_dependencies:
   flutter_test:
@@ -44,4 +43,3 @@ flutter:
   uses-material-design: true
   assets:
     - assets/
-    - assets/icons/

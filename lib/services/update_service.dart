@@ -1,115 +1,115 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:url_launcher/url_launcher.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config/app_config.dart';
+
+class UpdateInfo {
+  final String version;
+  final String downloadUrl;
+  final String changelog;
+  final bool isRequired;
+
+  UpdateInfo({
+    required this.version,
+    required this.downloadUrl,
+    this.changelog = '',
+    this.isRequired = false,
+  });
+}
 
 class UpdateService {
-  // GitHub releases API for hashoom-translator
-  static const String _repoOwner = 'hichzx052-bit';
-  static const String _repoName = 'hashoom-translator';
-  static const String _githubApi = 'https://api.github.com/repos';
+  static const String _updateDataKey = 'pending_update';
+  static const String _featuresKey = 'remote_features';
 
-  String _latestVersion = '';
-  String _downloadUrl = '';
-  String _releaseNotes = '';
-
-  String get latestVersion => _latestVersion;
-  String get releaseNotes => _releaseNotes;
-
-  /// Check for updates from GitHub Releases
-  Future<bool> checkForUpdate() async {
+  /// Check for updates from GitHub releases
+  static Future<UpdateInfo?> checkForUpdate() async {
     try {
-      final uri = Uri.parse('$_githubApi/$_repoOwner/$_repoName/releases/latest');
-      final response = await http.get(uri, headers: {
-        'Accept': 'application/vnd.github.v3+json',
-      }).timeout(const Duration(seconds: 10));
+      final response = await http.get(
+        Uri.parse(AppConfig.updateServerUrl),
+        headers: {'Accept': 'application/vnd.github.v3+json'},
+      );
 
       if (response.statusCode == 200) {
         final data = json.decode(response.body);
-        _latestVersion = (data['tag_name'] ?? '').replaceAll('v', '');
-        _releaseNotes = data['body'] ?? '';
-
-        // Find APK asset
-        final assets = data['assets'] as List? ?? [];
-        for (final asset in assets) {
-          final name = asset['name']?.toString() ?? '';
-          if (name.endsWith('.apk')) {
-            _downloadUrl = asset['browser_download_url'] ?? '';
-            break;
-          }
-        }
-
-        // Compare versions
+        final latestVersion = (data['tag_name'] ?? '').toString().replaceAll('v', '');
         final packageInfo = await PackageInfo.fromPlatform();
-        return _isNewerVersion(_latestVersion, packageInfo.version);
+        final currentVersion = packageInfo.version;
+
+        if (_isNewer(latestVersion, currentVersion)) {
+          String downloadUrl = '';
+          final assets = data['assets'] as List? ?? [];
+          for (var asset in assets) {
+            if (asset['name'].toString().endsWith('.apk')) {
+              downloadUrl = asset['browser_download_url'] ?? '';
+              break;
+            }
+          }
+
+          return UpdateInfo(
+            version: latestVersion,
+            downloadUrl: downloadUrl,
+            changelog: data['body'] ?? '',
+            isRequired: (data['body'] ?? '').toString().contains('[REQUIRED]'),
+          );
+        }
       }
     } catch (e) {
-      // Check admin panel for updates
-      return await _checkAdminPanelUpdate();
+      // Silent fail
     }
-    return false;
+    return null;
   }
 
-  /// Check admin panel for remote updates
-  Future<bool> _checkAdminPanelUpdate() async {
+  /// Check for feature updates pushed from admin app
+  static Future<Map<String, dynamic>?> checkFeatureUpdate() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final apiKey = prefs.getString('api_key') ?? '';
-      if (apiKey.isEmpty) return false;
-
-      // Admin panel update endpoint
-      final updateUrl = prefs.getString('update_url') ?? '';
-      if (updateUrl.isEmpty) return false;
-
-      final response = await http.get(
-        Uri.parse('$updateUrl/api/check-update'),
-        headers: {'Authorization': 'Bearer $apiKey'},
-      ).timeout(const Duration(seconds: 10));
-
-      if (response.statusCode == 200) {
-        final data = json.decode(response.body);
-        _latestVersion = data['version'] ?? '';
-        _downloadUrl = data['download_url'] ?? '';
-        _releaseNotes = data['notes'] ?? '';
-
-        final packageInfo = await PackageInfo.fromPlatform();
-        return _isNewerVersion(_latestVersion, packageInfo.version);
+      final data = prefs.getString(_updateDataKey);
+      if (data != null) {
+        return json.decode(data);
       }
-    } catch (_) {}
-    return false;
-  }
-
-  /// Download and install update
-  Future<void> downloadAndInstall() async {
-    if (_downloadUrl.isEmpty) return;
-    final uri = Uri.parse(_downloadUrl);
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    } catch (e) {
+      // Silent fail
     }
+    return null;
   }
 
-  /// Compare version strings
-  bool _isNewerVersion(String latest, String current) {
-    if (latest.isEmpty || current.isEmpty) return false;
-    
-    final latestParts = latest.split('.').map((e) => int.tryParse(e) ?? 0).toList();
-    final currentParts = current.split('.').map((e) => int.tryParse(e) ?? 0).toList();
+  /// Save feature update from admin app
+  static Future<void> saveFeatureUpdate(Map<String, dynamic> features) async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_featuresKey, json.encode(features));
+  }
 
-    for (int i = 0; i < 3; i++) {
-      final l = i < latestParts.length ? latestParts[i] : 0;
-      final c = i < currentParts.length ? currentParts[i] : 0;
-      if (l > c) return true;
-      if (l < c) return false;
+  /// Apply pending update
+  static Future<void> applyPendingUpdate() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove(_updateDataKey);
+  }
+
+  /// Generate API key for admin app communication
+  static String generateApiKey() {
+    final timestamp = DateTime.now().millisecondsSinceEpoch;
+    return '${AppConfig.apiKeyPrefix}-$timestamp';
+  }
+
+  /// Validate API key
+  static bool validateApiKey(String key) {
+    return key.startsWith(AppConfig.apiKeyPrefix);
+  }
+
+  static bool _isNewer(String latest, String current) {
+    try {
+      final latestParts = latest.split('.').map(int.parse).toList();
+      final currentParts = current.split('.').map(int.parse).toList();
+      for (int i = 0; i < 3; i++) {
+        final l = i < latestParts.length ? latestParts[i] : 0;
+        final c = i < currentParts.length ? currentParts[i] : 0;
+        if (l > c) return true;
+        if (l < c) return false;
+      }
+    } catch (e) {
+      return false;
     }
     return false;
-  }
-
-  /// Accept update from admin panel push
-  Future<void> acceptRemoteUpdate(String version, String url) async {
-    _latestVersion = version;
-    _downloadUrl = url;
-    await downloadAndInstall();
   }
 }

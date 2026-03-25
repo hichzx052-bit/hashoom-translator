@@ -1,45 +1,55 @@
 import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 
 class OverlayService {
-  /// Check if overlay permission is granted
-  static Future<bool> isPermissionGranted() async {
+  static bool _isShowing = false;
+
+  static bool get isShowing => _isShowing;
+
+  static Future<bool> checkPermission() async {
     return await FlutterOverlayWindow.isPermissionGranted();
   }
 
-  /// Request overlay permission
-  static Future<bool> requestPermission() async {
-    final granted = await FlutterOverlayWindow.isPermissionGranted();
-    if (!granted) {
-      await FlutterOverlayWindow.requestPermission();
-      return await FlutterOverlayWindow.isPermissionGranted();
-    }
-    return true;
+  static Future<void> requestPermission() async {
+    await FlutterOverlayWindow.requestPermission();
   }
 
-  /// Show the floating overlay (hashoom button 🪶)
-  static Future<void> showOverlay() async {
+  static Future<void> showOverlay({
+    int height = 200,
+    int width = 200,
+  }) async {
+    if (_isShowing) return;
+
+    final hasPermission = await checkPermission();
+    if (!hasPermission) {
+      await requestPermission();
+      return;
+    }
+
     await FlutterOverlayWindow.showOverlay(
       enableDrag: true,
-      height: 80,
-      width: 80,
+      height: height,
+      width: width,
       alignment: OverlayAlignment.centerRight,
       positionGravity: PositionGravity.auto,
       flag: OverlayFlag.defaultFlag,
     );
+    _isShowing = true;
   }
 
-  /// Close overlay
   static Future<void> closeOverlay() async {
+    if (!_isShowing) return;
     await FlutterOverlayWindow.closeOverlay();
+    _isShowing = false;
   }
 
-  /// Check if overlay is active
   static Future<bool> isOverlayActive() async {
     return await FlutterOverlayWindow.isActive();
   }
 
-  /// Share data with overlay
-  static Future<void> shareData(dynamic data) async {
+  static Future<void> shareData(Map<String, dynamic> data) async {
     await FlutterOverlayWindow.shareData(data);
   }
+
+  static Stream<dynamic> get overlayListener =>
+      FlutterOverlayWindow.overlayListener;
 }

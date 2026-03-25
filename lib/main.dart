@@ -1,185 +1,235 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:provider/provider.dart';
+import 'package:flutter_overlay_window/flutter_overlay_window.dart';
 import 'screens/home_screen.dart';
-import 'screens/settings_screen.dart';
-import 'screens/developer_screen.dart';
-import 'services/translation_service.dart';
-import 'services/speech_service.dart';
-import 'services/tts_service.dart';
-import 'services/overlay_service.dart';
+import 'screens/onboarding_screen.dart';
+import 'screens/overlay_screen.dart';
+import 'services/app_state.dart';
+import 'services/background_service.dart';
 import 'services/update_service.dart';
+import 'config/theme.dart';
+import 'utils/constants.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  SystemChrome.setPreferredOrientations([
+
+  // Lock orientation
+  await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
   ]);
-  runApp(const HashoomTranslatorApp());
+
+  // Initialize background service
+  await BackgroundTranslationService.initialize();
+
+  runApp(HashoomTranslatorApp());
 }
 
-// Overlay entry point - when floating button is tapped
+/// Overlay entry point — called when showing the floating window
 @pragma("vm:entry-point")
 void overlayMain() {
   WidgetsFlutterBinding.ensureInitialized();
-  runApp(const MaterialApp(
-    debugShowCheckedModeBanner: false,
-    home: OverlayWidget(),
-  ));
-}
-
-class OverlayWidget extends StatefulWidget {
-  const OverlayWidget({super.key});
-  @override
-  State<OverlayWidget> createState() => _OverlayWidgetState();
-}
-
-class _OverlayWidgetState extends State<OverlayWidget> {
-  bool _expanded = false;
-  String _myLang = 'ar';
-  String _theirLang = 'en';
-  bool _listening = false;
-
-  @override
-  Widget build(BuildContext context) {
-    if (!_expanded) {
-      return GestureDetector(
-        onTap: () => setState(() => _expanded = true),
-        child: Container(
-          width: 60, height: 60,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: const LinearGradient(
-              colors: [Color(0xFF6C63FF), Color(0xFF3F3D9E)],
-            ),
-            boxShadow: [BoxShadow(color: Colors.black26, blurRadius: 10)],
-          ),
-          child: const Center(
-            child: Text('🪶', style: TextStyle(fontSize: 28)),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      width: 280,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: Colors.black45, blurRadius: 15)],
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('🪶 هشوم', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-              GestureDetector(
-                onTap: () => setState(() => _expanded = false),
-                child: const Icon(Icons.close, color: Colors.white54, size: 20),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          // My Language
-          _buildLangRow('🗣 لغتي:', _myLang, (v) => setState(() => _myLang = v!)),
-          const SizedBox(height: 8),
-          // Their Language
-          _buildLangRow('👤 لغته:', _theirLang, (v) => setState(() => _theirLang = v!)),
-          const SizedBox(height: 12),
-          // Listen button
-          ElevatedButton.icon(
-            onPressed: () => setState(() => _listening = !_listening),
-            icon: Icon(_listening ? Icons.stop : Icons.mic, size: 20),
-            label: Text(_listening ? 'إيقاف' : 'ترجم الآن', style: const TextStyle(fontSize: 14)),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: _listening ? Colors.red : const Color(0xFF6C63FF),
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              minimumSize: const Size(double.infinity, 42),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildLangRow(String label, String value, ValueChanged<String?> onChanged) {
-    return Row(
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white70, fontSize: 13)),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8),
-            decoration: BoxDecoration(
-              color: Colors.white10,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: DropdownButton<String>(
-              value: value,
-              isExpanded: true,
-              dropdownColor: const Color(0xFF1A1A2E),
-              style: const TextStyle(color: Colors.white, fontSize: 13),
-              underline: const SizedBox(),
-              items: const [
-                DropdownMenuItem(value: 'ar', child: Text('العربية')),
-                DropdownMenuItem(value: 'en', child: Text('English')),
-                DropdownMenuItem(value: 'fr', child: Text('Français')),
-                DropdownMenuItem(value: 'es', child: Text('Español')),
-                DropdownMenuItem(value: 'de', child: Text('Deutsch')),
-                DropdownMenuItem(value: 'tr', child: Text('Türkçe')),
-                DropdownMenuItem(value: 'zh', child: Text('中文')),
-                DropdownMenuItem(value: 'ja', child: Text('日本語')),
-                DropdownMenuItem(value: 'ko', child: Text('한국어')),
-                DropdownMenuItem(value: 'ru', child: Text('Русский')),
-                DropdownMenuItem(value: 'pt', child: Text('Português')),
-                DropdownMenuItem(value: 'it', child: Text('Italiano')),
-                DropdownMenuItem(value: 'hi', child: Text('हिन्दी')),
-                DropdownMenuItem(value: 'ur', child: Text('اردو')),
-                DropdownMenuItem(value: 'fa', child: Text('فارسی')),
-                DropdownMenuItem(value: 'id', child: Text('Indonesia')),
-                DropdownMenuItem(value: 'ms', child: Text('Malay')),
-                DropdownMenuItem(value: 'th', child: Text('ไทย')),
-                DropdownMenuItem(value: 'vi', child: Text('Tiếng Việt')),
-                DropdownMenuItem(value: 'nl', child: Text('Nederlands')),
-              ],
-              onChanged: onChanged,
-            ),
-          ),
-        ),
-      ],
-    );
-  }
+  runApp(
+    MaterialApp(
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.darkTheme,
+      home: OverlayScreen(),
+    ),
+  );
 }
 
 class HashoomTranslatorApp extends StatelessWidget {
-  const HashoomTranslatorApp({super.key});
+  @override
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => AppState()..initialize(),
+      child: MaterialApp(
+        title: 'هشوم ترجمة',
+        debugShowCheckedModeBanner: false,
+        theme: AppTheme.darkTheme,
+        builder: (context, child) {
+          return Directionality(
+            textDirection: TextDirection.rtl,
+            child: child!,
+          );
+        },
+        home: SplashScreen(),
+      ),
+    );
+  }
+}
+
+class SplashScreen extends StatefulWidget {
+  @override
+  State<SplashScreen> createState() => _SplashScreenState();
+}
+
+class _SplashScreenState extends State<SplashScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _fadeAnim;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 2000),
+    );
+    _fadeAnim = Tween<double>(begin: 0, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Interval(0, 0.5, curve: Curves.easeIn)),
+    );
+    _scaleAnim = Tween<double>(begin: 0.5, end: 1).animate(
+      CurvedAnimation(parent: _controller, curve: Interval(0, 0.6, curve: Curves.elasticOut)),
+    );
+
+    _controller.forward();
+    _checkAndNavigate();
+  }
+
+  Future<void> _checkAndNavigate() async {
+    // Check for required updates first
+    final update = await UpdateService.checkForUpdate();
+
+    await Future.delayed(Duration(seconds: 3));
+
+    if (!mounted) return;
+
+    if (update != null && update.isRequired) {
+      _showRequiredUpdate(update);
+      return;
+    }
+
+    final prefs = await SharedPreferences.getInstance();
+    final onboardingDone = prefs.getBool(AppConstants.prefOnboardingDone) ?? false;
+
+    Navigator.of(context).pushReplacement(
+      PageRouteBuilder(
+        pageBuilder: (_, __, ___) =>
+            onboardingDone ? HomeScreen() : OnboardingScreen(),
+        transitionsBuilder: (_, anim, __, child) {
+          return FadeTransition(opacity: anim, child: child);
+        },
+        transitionDuration: Duration(milliseconds: 500),
+      ),
+    );
+  }
+
+  void _showRequiredUpdate(UpdateInfo update) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => WillPopScope(
+        onWillPop: () async => false,
+        child: AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          title: Text('تحديث إجباري ⚠️', style: TextStyle(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'الإصدار ${update.version} متوفر',
+                style: TextStyle(color: AppTheme.textPrimary),
+              ),
+              SizedBox(height: 8),
+              Text(
+                'لازم تحدّث عشان تقدر تستخدم التطبيق',
+                style: TextStyle(color: AppTheme.textSecondary),
+              ),
+              if (update.changelog.isNotEmpty) ...[
+                SizedBox(height: 12),
+                Text(update.changelog, style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
+              ],
+            ],
+          ),
+          actions: [
+            ElevatedButton(
+              onPressed: () {
+                // Open download URL
+              },
+              child: Text('تحديث الآن 🚀'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'هشوم ترجمة',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        primaryColor: const Color(0xFF6C63FF),
-        scaffoldBackgroundColor: const Color(0xFF0A0A1A),
-        colorScheme: const ColorScheme.dark(
-          primary: Color(0xFF6C63FF),
-          secondary: Color(0xFF00D9FF),
-          surface: Color(0xFF1A1A2E),
+    return Scaffold(
+      backgroundColor: AppTheme.bgDark,
+      body: Center(
+        child: AnimatedBuilder(
+          animation: _controller,
+          builder: (context, child) {
+            return Opacity(
+              opacity: _fadeAnim.value,
+              child: Transform.scale(
+                scale: _scaleAnim.value,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    // Logo
+                    Container(
+                      width: 120,
+                      height: 120,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        gradient: AppTheme.primaryGradient,
+                        boxShadow: [
+                          BoxShadow(
+                            color: AppTheme.primaryColor.withOpacity(0.5),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                          ),
+                        ],
+                      ),
+                      child: Center(
+                        child: Text('🪶', style: TextStyle(fontSize: 56)),
+                      ),
+                    ),
+                    SizedBox(height: 24),
+                    Text(
+                      'هشوم ترجمة',
+                      style: TextStyle(
+                        color: AppTheme.textPrimary,
+                        fontSize: 28,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'مترجم صوتي ذكي 🎙️',
+                      style: TextStyle(
+                        color: AppTheme.textSecondary,
+                        fontSize: 16,
+                      ),
+                    ),
+                    SizedBox(height: 32),
+                    SizedBox(
+                      width: 30,
+                      height: 30,
+                      child: CircularProgressIndicator(
+                        valueColor: AlwaysStoppedAnimation(AppTheme.primaryColor),
+                        strokeWidth: 2,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-        fontFamily: 'Cairo',
-        useMaterial3: true,
       ),
-      home: const HomeScreen(),
-      routes: {
-        '/settings': (ctx) => const SettingsScreen(),
-        '/developer': (ctx) => const DeveloperScreen(),
-      },
     );
   }
 }

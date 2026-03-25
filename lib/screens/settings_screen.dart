@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import '../services/tts_service.dart';
-import '../widgets/voice_selector.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../config/theme.dart';
+import '../config/app_config.dart';
+import '../services/app_state.dart';
+import '../services/update_service.dart';
+import '../utils/constants.dart';
+import 'developer_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
-  const SettingsScreen({super.key});
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
-  final TtsService _ttsService = TtsService();
-  double _speechRate = 0.5;
-  double _pitch = 1.0;
-  String? _selectedVoice;
-  bool _autoSpeak = true;
-  bool _vibrate = true;
+  int _devTapCount = 0;
+  bool _devMode = false;
+  String? _apiKey;
 
   @override
   void initState() {
@@ -23,60 +25,90 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Future<void> _loadSettings() async {
-    // Load from SharedPreferences
-    setState(() {});
+    final prefs = await SharedPreferences.getInstance();
+    setState(() {
+      _devMode = prefs.getBool(AppConstants.prefDeveloperMode) ?? false;
+      _apiKey = prefs.getString(AppConstants.prefApiKey);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFF0A0A1A),
+      backgroundColor: AppTheme.bgDark,
       appBar: AppBar(
-        backgroundColor: const Color(0xFF0A0A1A),
-        title: const Text('⚙️ الإعدادات', style: TextStyle(color: Colors.white)),
-        iconTheme: const IconThemeData(color: Colors.white),
+        backgroundColor: AppTheme.bgDark,
+        title: Text('الإعدادات ⚙️'),
+        centerTitle: true,
       ),
       body: ListView(
-        padding: const EdgeInsets.all(16),
+        padding: EdgeInsets.all(16),
         children: [
-          // Voice settings
-          _buildSection('🔊 إعدادات الصوت', [
-            _buildSlider('سرعة الكلام', _speechRate, 0.1, 1.0, (v) {
-              setState(() => _speechRate = v);
-              _ttsService.setRate(v);
-            }),
-            _buildSlider('طبقة الصوت', _pitch, 0.5, 2.0, (v) {
-              setState(() => _pitch = v);
-              _ttsService.setPitch(v);
-            }),
-            const VoiceSelector(),
+          // App info
+          _buildSection('التطبيق', [
+            _buildInfoTile(
+              'الإصدار',
+              AppConfig.appVersion,
+              Icons.info_outline,
+              onTap: () {
+                _devTapCount++;
+                if (_devTapCount >= 7) {
+                  _unlockDeveloper();
+                }
+              },
+            ),
+            _buildActionTile(
+              'التحقق من التحديثات',
+              Icons.system_update,
+              AppTheme.secondaryColor,
+              () => _checkUpdate(),
+            ),
           ]),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
 
-          // Behavior settings
-          _buildSection('🎯 السلوك', [
-            _buildSwitch('نطق الترجمة تلقائياً', _autoSpeak, (v) {
-              setState(() => _autoSpeak = v);
-            }),
-            _buildSwitch('اهتزاز عند الترجمة', _vibrate, (v) {
-              setState(() => _vibrate = v);
-            }),
+          // Translation settings
+          _buildSection('الترجمة', [
+            Consumer<AppState>(
+              builder: (_, state, __) => SwitchListTile(
+                title: Text('تعرف تلقائي على اللغة', style: TextStyle(color: AppTheme.textPrimary)),
+                subtitle: Text('يكتشف اللغة من كلامك', style: TextStyle(color: AppTheme.textSecondary)),
+                value: state.autoDetect,
+                onChanged: (v) => state.setAutoDetect(v),
+                activeColor: AppTheme.primaryColor,
+                secondary: Icon(Icons.auto_fix_high, color: AppTheme.primaryColor),
+              ),
+            ),
           ]),
-          const SizedBox(height: 16),
+          SizedBox(height: 16),
+
+          // API Key
+          if (_devMode) ...[
+            _buildSection('المطور', [
+              _buildInfoTile(
+                'API Key',
+                _apiKey ?? 'لم يُنشأ بعد',
+                Icons.vpn_key,
+              ),
+              _buildActionTile(
+                'إنشاء API Key جديد',
+                Icons.refresh,
+                AppTheme.warningColor,
+                () => _generateApiKey(),
+              ),
+              _buildActionTile(
+                'لوحة المطور',
+                Icons.developer_mode,
+                AppTheme.accentColor,
+                () => Navigator.push(context, MaterialPageRoute(builder: (_) => DeveloperScreen())),
+              ),
+            ]),
+            SizedBox(height: 16),
+          ],
 
           // About
-          _buildSection('📱 عن التطبيق', [
-            const ListTile(
-              leading: Text('🪶', style: TextStyle(fontSize: 24)),
-              title: Text('هشوم ترجمة', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-              subtitle: Text('الإصدار 2.0.0', style: TextStyle(color: Colors.white54)),
-            ),
-            ListTile(
-              leading: const Icon(Icons.code, color: Color(0xFF6C63FF)),
-              title: const Text('وضع المطور', style: TextStyle(color: Colors.white)),
-              trailing: const Icon(Icons.chevron_right, color: Colors.white54),
-              onTap: () => Navigator.pushNamed(context, '/developer'),
-            ),
+          _buildSection('حول', [
+            _buildInfoTile('المطور', 'هشام | Hichamdzz', Icons.person),
+            _buildInfoTile('هشوم', 'ابن هشام 🪶', Icons.favorite, color: AppTheme.accentColor),
           ]),
         ],
       ),
@@ -84,52 +116,158 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   Widget _buildSection(String title, List<Widget> children) {
-    return Container(
-      decoration: BoxDecoration(
-        color: const Color(0xFF1A1A2E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.all(16),
-            child: Text(title, style: const TextStyle(
-              color: Color(0xFF6C63FF), fontSize: 16, fontWeight: FontWeight.bold,
-            )),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: EdgeInsets.only(bottom: 8, right: 4),
+          child: Text(
+            title,
+            style: TextStyle(
+              color: AppTheme.primaryColor,
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
           ),
-          ...children,
-        ],
-      ),
+        ),
+        Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            color: AppTheme.bgCard,
+          ),
+          child: Column(children: children),
+        ),
+      ],
     );
   }
 
-  Widget _buildSlider(String label, double value, double min, double max, ValueChanged<double> onChanged) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
-          Slider(
-            value: value,
-            min: min,
-            max: max,
-            activeColor: const Color(0xFF6C63FF),
-            inactiveColor: Colors.white12,
-            onChanged: onChanged,
+  Widget _buildInfoTile(String title, String value, IconData icon,
+      {VoidCallback? onTap, Color? color}) {
+    return ListTile(
+      leading: Icon(icon, color: color ?? AppTheme.textSecondary),
+      title: Text(title, style: TextStyle(color: AppTheme.textPrimary)),
+      subtitle: Text(value, style: TextStyle(color: AppTheme.textSecondary)),
+      onTap: onTap,
+    );
+  }
+
+  Widget _buildActionTile(String title, IconData icon, Color color, VoidCallback onTap) {
+    return ListTile(
+      leading: Icon(icon, color: color),
+      title: Text(title, style: TextStyle(color: AppTheme.textPrimary)),
+      trailing: Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+      onTap: onTap,
+    );
+  }
+
+  Future<void> _unlockDeveloper() async {
+    final controller = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.bgCard,
+        title: Text('كود المطور 🔐', style: TextStyle(color: AppTheme.textPrimary)),
+        content: TextField(
+          controller: controller,
+          style: TextStyle(color: AppTheme.textPrimary),
+          obscureText: true,
+          decoration: InputDecoration(
+            hintText: 'أدخل كود المطور',
+            hintStyle: TextStyle(color: AppTheme.textSecondary),
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('إلغاء'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('تأكيد'),
           ),
         ],
       ),
     );
+
+    if (result == true && controller.text == AppConfig.developerCode) {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(AppConstants.prefDeveloperMode, true);
+      setState(() {
+        _devMode = true;
+        _devTapCount = 0;
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('وضع المطور مفعّل! 🔓'), backgroundColor: AppTheme.successColor),
+      );
+    } else if (result == true) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('كود خاطئ ❌'), backgroundColor: AppTheme.accentColor),
+      );
+      _devTapCount = 0;
+    }
   }
 
-  Widget _buildSwitch(String label, bool value, ValueChanged<bool> onChanged) {
-    return SwitchListTile(
-      title: Text(label, style: const TextStyle(color: Colors.white70)),
-      value: value,
-      activeColor: const Color(0xFF6C63FF),
-      onChanged: onChanged,
+  Future<void> _generateApiKey() async {
+    final key = UpdateService.generateApiKey();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(AppConstants.prefApiKey, key);
+    setState(() => _apiKey = key);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('API Key: $key'), backgroundColor: AppTheme.successColor),
     );
+  }
+
+  Future<void> _checkUpdate() async {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('جاري التحقق...'), backgroundColor: AppTheme.primaryColor),
+    );
+
+    final update = await UpdateService.checkForUpdate();
+    if (update != null) {
+      showDialog(
+        context: context,
+        barrierDismissible: !update.isRequired,
+        builder: (ctx) => AlertDialog(
+          backgroundColor: AppTheme.bgCard,
+          title: Text('تحديث متوفر! 🎉', style: TextStyle(color: AppTheme.textPrimary)),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('الإصدار: ${update.version}', style: TextStyle(color: AppTheme.textPrimary)),
+              SizedBox(height: 8),
+              if (update.changelog.isNotEmpty)
+                Text(update.changelog, style: TextStyle(color: AppTheme.textSecondary)),
+              if (update.isRequired)
+                Padding(
+                  padding: EdgeInsets.only(top: 12),
+                  child: Text(
+                    '⚠️ هذا تحديث إجباري',
+                    style: TextStyle(color: AppTheme.warningColor, fontWeight: FontWeight.bold),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            if (!update.isRequired)
+              TextButton(
+                onPressed: () => Navigator.pop(ctx),
+                child: Text('لاحقاً'),
+              ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                // Open download URL
+              },
+              child: Text('تحديث الآن'),
+            ),
+          ],
+        ),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('أنت على آخر إصدار ✅'), backgroundColor: AppTheme.successColor),
+      );
+    }
   }
 }
