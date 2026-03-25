@@ -21,15 +21,12 @@ dependencies:
   permission_handler: ^11.1.0
   shared_preferences: ^2.2.2
   provider: ^6.1.1
-  google_fonts: ^6.1.0
   animate_do: ^3.1.2
-  lottie: ^3.0.0
   url_launcher: ^6.2.2
   path_provider: ^2.1.1
   http: ^1.1.2
   package_info_plus: ^5.0.1
   audio_session: ^0.1.18
-  langdetect: ^0.0.2
   uuid: ^4.2.1
   flutter_local_notifications: ^17.0.0
   crypto: ^3.0.3
