@@ -1,4 +1,5 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     package="com.hashoom.translator">
 
     <!-- Permissions -->
@@ -38,11 +39,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Overlay Entry Point -->
-        <meta-data
-            android:name="io.flutter.embedding.android.FlutterOverlayEntryPoint"
-            android:value="overlayMain" />
-
         <!-- Audio Capture Service -->
         <service
             android:name=".AudioCaptureService"
@@ -57,27 +53,11 @@
             android:exported="false"
             android:foregroundServiceType="specialUse" />
 
-        <!-- Background Translation Service -->
-        <service
-            android:name="id.flutter.flutter_background_service.BackgroundService"
-            android:foregroundServiceType="specialUse" />
-
-        <!-- Boot receiver for auto-start -->
-        <receiver
-            android:name="id.flutter.flutter_background_service.BootReceiver"
-            android:enabled="true"
-            android:exported="false">
-            <intent-filter>
-                <action android:name="android.intent.action.BOOT_COMPLETED" />
-            </intent-filter>
-        </receiver>
-
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- MediaProjection for audio capture -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT"/>
